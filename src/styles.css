@@ -1,101 +1,161 @@
-.container {
-  max-width: 1000px;  
-  margin: 0 auto;
-  padding-top: 24px;
+/******************************
+ * 0) Base reset (简化)
+ ******************************/
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: linear-gradient(135deg, #eef3fa, #dfeafc);
+  color: #1f2937;
 }
 
-.form-wrapper {
-  max-width: 900px;  
-  margin: 0 auto;     
+/******************************
+ * 1) Tag selectors
+ ******************************/
+h1 {
+  text-align: center;
+  margin-top: 24px;
+  margin-bottom: 16px;        /* 与内容拉开距离 */
+  font-weight: 700;
+  line-height: 1.15;
+  text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.10);
 }
 
-.form{
-  width: 100% !important;
-  max-width: 900px !important; 
-  margin: 0 auto !important;
-  padding: 24px 32px !important;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0,0,0,.06);
-  box-sizing: border-box;
-}
-
-.form-label {
+label {
   display: block;
-  margin-bottom: 6px;
   font-weight: 600;
+  margin-bottom: 6px;
 }
 
-.form-control,
-.form-select,
-textarea.form-control {
+input, select, textarea {
   width: 100%;
   padding: 10px 12px;
-  line-height: 1.4;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color .2s, box-shadow .2s, background-color .2s;
 }
 
-.row.mb-3 {
-  margin-bottom: 1.25rem !important;
-  row-gap: 12px;    
+/******************************
+ * 2) Class selectors
+ ******************************/
+/* 页面容器：让内容不贴边 */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
 }
 
-@media (max-width: 768px) {
-  .col-md-6 {
-    flex: 0 0 100%;
-    max-width: 100%;
+/* 表单外卡片：更宽、更舒展 */
+.form {
+  background: #ffffff;
+  margin: 24px auto 48px auto;
+  max-width: 960px;           /* 关键宽度：想更宽可改 1000/1080 */
+  padding: 28px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
+  text-align: left;           /* 覆盖示例里居中，标签/输入左对齐更易读 */
+}
+
+/* 两列栅格（中大屏）；小屏自动一列 */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* 默认一列（手机） */
+  gap: 16px 20px;             /* 行间/列间距 */
+  margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;  /* ≥768px 两列 */
   }
 }
 
-h1.text-center {
-  font-size: 1.75rem;
-  letter-spacing: .2px;
-  margin-bottom: 1rem;
-  text-shadow: 0 2px 8px rgba(0,0,0,.08);
+/* 单独一行的区域（如 textarea / 日期选择整块） */
+.form-row {
+  margin-bottom: 16px;
 }
 
-.text-center {
-  margin-top: 8px;
-}
-.text-center .btn {
-  padding: 8px 16px;
-  border-radius: 10px;
-}
-.text-center .btn + .btn {
-  margin-left: 8px;
-}
-
-.card {
-   border: 1px solid #e6e6e6;
-   border-radius: 12px;
-   box-shadow: 0 2px 8px rgba(0,0,0,.06);
-}
-.card-header {
-   background-color: #275FDA;
-   color: #fff;
-   padding: 12px;
-   border-radius: 12px 12px 0 0;
-}
-.list-group-item {
-   padding: 12px;
-}
-
+/* 错误提示 */
 .text-danger {
-  display: block;             
-  color: #fff !important;            
-  background-color: #dc3545;          
-  border: 1px solid #b02a37;
-  padding: 6px 10px;
-  margin-top: 4px;
-  border-radius: 6px;
+  color: #dc2626;
   font-size: 0.9rem;
-  font-weight: 600;
-  box-sizing: border-box;
+  margin-top: 6px;
 }
 
-.is-invalid {
-  border-color: #dc3545 !important;
-  box-shadow: 0 0 4px rgba(220,53,69,0.35);
+/* 提交按钮 */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: #2563eb;
+  transition: transform .05s, filter .15s;
+}
+.btn:hover { filter: brightness(.95); }
+.btn:active { transform: translateY(1px); }
+
+/******************************
+ * 3) ID selectors（聚焦态示例）
+ *   按你给的风格：更明显的边框色和淡背景
+ ******************************/
+#fullName:focus,
+#ageGroup:focus,
+#gender:focus,
+#counsellor:focus,
+#assessment:focus,
+#year:focus,
+#month:focus,
+#day:focus {
+  border-color: #FF6347;      /* Tomato */
+  background-color: #FFEBE8;  /* very light */
+  box-shadow: 0 0 0 .2rem rgba(255, 99, 71, .20);
+  outline: 0;
+}
+
+/******************************
+ * 4) Attribute selectors（示例）
+ ******************************/
+/* 指定 id 的下拉：默认灰色背景（按你示例） */
+select[id="gender"] {
+  background-color: #d3d3d3;
+}
+
+/* 所有日期选择（以 date- 前缀命名时可用这个选择器） */
+select[id^="date-"] {
+  letter-spacing: .3px;
+}
+
+/* 只读输入的样式（如果某些字段需要禁用编辑） */
+input[readonly],
+textarea[readonly] {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+/******************************
+ * 5) 细节与响应式
+ ******************************/
+/* 文本域最小高度与 resize 行为 */
+textarea { min-height: 110px; resize: vertical; }
+
+/* 三个并排的年月日选择（小屏自动换行） */
+.date-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .date-grid { grid-template-columns: 1fr; }
+}
+
+/* 顶部副标题或说明（可选） */
+.form-subtitle {
+  color: #475569;
+  margin: 6px 0 18px 0;
 }
