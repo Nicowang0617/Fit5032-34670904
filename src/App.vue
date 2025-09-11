@@ -1,24 +1,14 @@
 <template>
-  <div class="container d-flex justify-content-center mt-5">
-    <div class="w-100" style="max-width: 1000px;">
-      <AppointmentForm />
-    </div>
-  </div>
+  <router-view />
 </template>
 
-<script>
-import AppointmentForm from "./components/AppointmentForm.vue";
-
-export default {
-  name: "App",
-  components: {
-    AppointmentForm
-  }
-};
+<script setup>
 </script>
 
 <style>
 body {
+  margin: 0;
   background: #f8fafc;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 </style>
