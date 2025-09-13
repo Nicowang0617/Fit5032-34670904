@@ -97,5 +97,5 @@ async function onLogin() {
 .btn.ghost { background:#fff; color:#111827; }
 .error { color:#dc2626; margin-top:10px; }
 .small { font-size: 12px; margin-top: 6px; }
-.success { color:#16a34a; margin:8px 0; }
+.success { color:#16a34a; margin:7px 0; }
 </style>
