@@ -129,16 +129,21 @@
           <small v-if="loadError" class="text-danger">Failed to load some data. Using fallback.</small>
         </div>
       </form>
+
+      <div class="mt-5">
+        <Rating />
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import LogoutBar from './LogoutBar.vue'
+import Rating from './Rating.vue'
 
 export default {
   name: 'AppointmentForm',
-  components: { LogoutBar },
+  components: { LogoutBar, Rating },
 
   data() {
     const thisYear = new Date().getFullYear()
@@ -209,7 +214,7 @@ export default {
 
   methods: {
     clearError(key) {
-      if (this.errors[key]) this.$set(this.errors, key, null)
+      if (key in this.errors) this.errors[key] = null
     },
 
     validate() {

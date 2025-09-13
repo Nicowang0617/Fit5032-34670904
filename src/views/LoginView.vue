@@ -73,8 +73,12 @@ async function onLogin() {
   pending.value = true
   try {
     await auth.login({ email: email.value, password: password.value })
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/appointment'
-    router.push(redirect)
+    if (auth.user?.role === 'admin') {
+      router.push('/admin')
+    } else {
+      const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/appointment'
+      router.push(redirect)
+    }
   } catch (e) {
     error.value = e?.message || 'Login failed'
   } finally {

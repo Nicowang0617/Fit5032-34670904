@@ -1,28 +1,38 @@
 import { defineStore } from 'pinia'
 
-const LS_USERS = 'app_users_v1'
-const LS_CURRENT = 'app_current_user_v1'
+const LS_USERS     = 'app_users_v1'
+const LS_CURRENT   = 'app_current_user_v1'
+const LS_ATTEMPTS  = 'app_login_attempts_v1' 
 
 const load = (k, defVal) => {
   try { return JSON.parse(localStorage.getItem(k)) ?? defVal } catch { return defVal }
 }
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v))
 
+function uuid() {
+  if (crypto?.randomUUID) return crypto.randomUUID()
+  return 'u-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
 async function sha256(text) {
   const data = new TextEncoder().encode(text)
+  if (!crypto?.subtle?.digest) {
+    throw new Error('Secure crypto not available. Run on HTTPS or localhost.')
+  }
   const buf = await crypto.subtle.digest('SHA-256', data)
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    users: load(LS_USERS, []),     
-    user: load(LS_CURRENT, null),   
+    users: load(LS_USERS, []),
+    user: load(LS_CURRENT, null),
+    attempts: load(LS_ATTEMPTS, {}), 
   }),
 
   getters: {
     isAuthenticated: (s) => !!s.user,
-    isAdmin: (s) => s.user?.role === 'admin', 
+    isAdmin: (s) => s.user?.role === 'admin',
   },
 
   actions: {
@@ -31,7 +41,7 @@ export const useAuthStore = defineStore('auth', {
       if (!exists) {
         const hashed = await sha256('admin123!')
         this.users.push({
-          id: crypto.randomUUID(),
+          id: uuid(),
           name: 'Admin',
           email: 'admin@example.com',
           password: hashed,
@@ -43,6 +53,7 @@ export const useAuthStore = defineStore('auth', {
 
     async register({ name, email, password }) {
       if (!name || name.trim().length < 2) throw new Error('Name must be at least 2 characters')
+      const cleanName = name.trim().replace(/[<>]/g, '').slice(0, 200)
 
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRe.test(email)) throw new Error('Invalid email format')
@@ -56,8 +67,8 @@ export const useAuthStore = defineStore('auth', {
 
       const hashed = await sha256(password)
       const nu = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
+        id: uuid(),
+        name: cleanName,
         email: norm,
         password: hashed,
         role: 'user',
@@ -65,14 +76,38 @@ export const useAuthStore = defineStore('auth', {
 
       this.users.push(nu)
       save(LS_USERS, this.users)
-
     },
 
     async login({ email, password }) {
       const norm = (email || '').toLowerCase()
+      const now = Date.now()
+
+      const attempt = this.attempts[norm]
+      if (attempt?.lockedUntil && now < attempt.lockedUntil) {
+        const waitMin = Math.ceil((attempt.lockedUntil - now) / 1000 / 60)
+        throw new Error(`Too many failed attempts. Please wait ${waitMin} min.`)
+      }
+
       const hashed = await sha256(password || '')
       const u = this.users.find(x => x.email === norm && x.password === hashed)
-      if (!u) throw new Error('Invalid email or password')
+
+      if (!u) {
+        const entry = this.attempts[norm] || { count: 0, lockedUntil: 0 }
+        entry.count += 1
+        if (entry.count >= 5) {
+          entry.lockedUntil = now + 10 * 60 * 1000 
+          entry.count = 0
+        }
+        this.attempts = { ...this.attempts, [norm]: entry } 
+        save(LS_ATTEMPTS, this.attempts)
+        throw new Error('Invalid email or password')
+      }
+
+      if (this.attempts[norm]) {
+        const { [norm]: _, ...rest } = this.attempts
+        this.attempts = rest
+        save(LS_ATTEMPTS, this.attempts)
+      }
 
       this.user = { id: u.id, name: u.name, email: u.email, role: u.role }
       save(LS_CURRENT, this.user)
