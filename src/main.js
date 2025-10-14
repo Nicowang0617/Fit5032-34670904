@@ -6,10 +6,10 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import router from './router'
 import { createPinia } from 'pinia'
 import XssDirective from './directives/XSS.js'
-
+import './Firebase' 
 
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
+app.directive('safe-html', XssDirective) 
 app.mount('#app')
-app.directive('safe-html', XssDirective)

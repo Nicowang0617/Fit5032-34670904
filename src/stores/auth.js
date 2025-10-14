@@ -1,32 +1,26 @@
 import { defineStore } from 'pinia'
+import { auth, db } from '@/Firebase'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  onAuthStateChanged,
+} from 'firebase/auth'
+import {
+  doc, getDoc, setDoc, serverTimestamp,
+} from 'firebase/firestore'
 
-const LS_USERS     = 'app_users_v1'
-const LS_CURRENT   = 'app_current_user_v1'
-const LS_ATTEMPTS  = 'app_login_attempts_v1' 
-
+const LS_ATTEMPTS = 'app_login_attempts_v1'
 const load = (k, defVal) => {
   try { return JSON.parse(localStorage.getItem(k)) ?? defVal } catch { return defVal }
 }
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v))
 
-function uuid() {
-  if (crypto?.randomUUID) return crypto.randomUUID()
-  return 'u-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
-
-async function sha256(text) {
-  const data = new TextEncoder().encode(text)
-  if (!crypto?.subtle?.digest) {
-    throw new Error('Secure crypto not available. Run on HTTPS or localhost.')
-  }
-  const buf = await crypto.subtle.digest('SHA-256', data)
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    users: load(LS_USERS, []),
-    user: load(LS_CURRENT, null),
+    user: null,             
+    ready: false,               
     attempts: load(LS_ATTEMPTS, {}), 
   }),
 
@@ -36,46 +30,50 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    async ensureAdmin() {
-      const exists = this.users.find(u => u.email === 'admin@example.com')
-      if (!exists) {
-        const hashed = await sha256('admin123!')
-        this.users.push({
-          id: uuid(),
-          name: 'Admin',
-          email: 'admin@example.com',
-          password: hashed,
-          role: 'admin',
-        })
-        save(LS_USERS, this.users)
-      }
+
+    init() {
+      if (this.ready) return
+      onAuthStateChanged(auth, async (u) => {
+        if (u) {
+          const role = await this._getRole(u.uid)
+          this.user = {
+            uid: u.uid,
+            email: u.email,
+            displayName: u.displayName,
+            role: role || 'user',
+          }
+
+          await this.ensureAdmin()
+        } else {
+          this.user = null
+        }
+        this.ready = true
+      })
     },
 
     async register({ name, email, password }) {
-      if (!name || name.trim().length < 2) throw new Error('Name must be at least 2 characters')
-      const cleanName = name.trim().replace(/[<>]/g, '').slice(0, 200)
-
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRe.test(email)) throw new Error('Invalid email format')
-
       if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
         throw new Error('Password must be ≥8 chars and include letters & digits')
       }
 
-      const norm = (email || '').toLowerCase()
-      if (this.users.find(u => u.email === norm)) throw new Error('Email already registered')
+      const cred = await createUserWithEmailAndPassword(auth, email, password)
+      if (name?.trim()) await updateProfile(cred.user, { displayName: name.trim() })
 
-      const hashed = await sha256(password)
-      const nu = {
-        id: uuid(),
-        name: cleanName,
-        email: norm,
-        password: hashed,
+      await setDoc(doc(db, 'profiles', cred.user.uid), {
+        email: cred.user.email,
+        displayName: name?.trim() || cred.user.displayName || '',
+        role: 'user',
+        createdAt: serverTimestamp(),
+      })
+
+      this.user = {
+        uid: cred.user.uid,
+        email: cred.user.email,
+        displayName: name?.trim() || cred.user.displayName,
         role: 'user',
       }
-
-      this.users.push(nu)
-      save(LS_USERS, this.users)
     },
 
     async login({ email, password }) {
@@ -88,34 +86,63 @@ export const useAuthStore = defineStore('auth', {
         throw new Error(`Too many failed attempts. Please wait ${waitMin} min.`)
       }
 
-      const hashed = await sha256(password || '')
-      const u = this.users.find(x => x.email === norm && x.password === hashed)
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password)
 
-      if (!u) {
+        if (this.attempts[norm]) {
+          const { [norm]: _, ...rest } = this.attempts
+          this.attempts = rest
+          save(LS_ATTEMPTS, this.attempts)
+        }
+
+        const role = await this._getRole(cred.user.uid)
+        this.user = {
+          uid: cred.user.uid,
+          email: cred.user.email,
+          displayName: cred.user.displayName,
+          role: role || 'user',
+        }
+
+        await this.ensureAdmin()
+      } catch (err) {
         const entry = this.attempts[norm] || { count: 0, lockedUntil: 0 }
         entry.count += 1
         if (entry.count >= 5) {
           entry.lockedUntil = now + 10 * 60 * 1000 
           entry.count = 0
         }
-        this.attempts = { ...this.attempts, [norm]: entry } 
+        this.attempts = { ...this.attempts, [norm]: entry }
         save(LS_ATTEMPTS, this.attempts)
         throw new Error('Invalid email or password')
       }
-
-      if (this.attempts[norm]) {
-        const { [norm]: _, ...rest } = this.attempts
-        this.attempts = rest
-        save(LS_ATTEMPTS, this.attempts)
-      }
-
-      this.user = { id: u.id, name: u.name, email: u.email, role: u.role }
-      save(LS_CURRENT, this.user)
     },
 
-    logout() {
+    async logout() {
+      await signOut(auth)
       this.user = null
-      localStorage.removeItem(LS_CURRENT)
+    },
+
+
+    async ensureAdmin() {
+      if (!this.user?.email) return
+      if (this.user.email.toLowerCase() !== 'admin@example.com') return
+
+      const ref = doc(db, 'profiles', this.user.uid)
+      const snap = await getDoc(ref)
+      if (!snap.exists()) return
+
+      const data = snap.data() || {}
+      if (data.role !== 'admin') {
+        await setDoc(ref, { ...data, role: 'admin', updatedAt: serverTimestamp() }, { merge: true })
+        this.user = { ...this.user, role: 'admin' }
+      }
+    },
+
+    async _getRole(uid) {
+      if (!uid) return 'user'
+      const ref = doc(db, 'profiles', uid)
+      const snap = await getDoc(ref)
+      return snap.exists() ? (snap.data().role || 'user') : 'user'
     },
   },
 })

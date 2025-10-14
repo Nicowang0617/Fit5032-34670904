@@ -123,7 +123,9 @@
             Reset
           </button>
         </div>
-
+ <router-link to="/geo" class="btn btn-outline-primary ms-2 px-4">
+    Open Map
+  </router-link>
         <div class="text-center mt-3">
           <small v-if="loading" class="text-muted">Loading reference data...</small>
           <small v-if="loadError" class="text-danger">Failed to load some data. Using fallback.</small>
