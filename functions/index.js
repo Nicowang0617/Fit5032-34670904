@@ -40,7 +40,6 @@ const isoDate = (d = new Date()) =>
 exports.email = onRequest(
   { region: 'us-central1', timeoutSeconds: 60 },
   async (req, res) => {
-    // CORS preflight
     if (req.method === 'OPTIONS') {
       res.set(corsHeaders(req)).status(204).send('');
       return;
@@ -114,7 +113,7 @@ exports.email = onRequest(
 );
 
 exports.bulkEmail = onRequest(
-  { region: 'us-central1', timeoutSeconds: 540 }, // longer timeout for larger batches
+  { region: 'us-central1', timeoutSeconds: 540 }, 
   async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.set(corsHeaders(req)).status(204).send('');
