@@ -51,7 +51,10 @@
         <div><b>Votes:</b> {{ count }}</div>
       </div>
     </div>
-
+<div class="mt-3">
+      <button class="btn btn-outline-success me-2" @click="exportRatingsCSV">export rating CSV</button>
+      <button class="btn btn-outline-dark" @click="exportRatingsPDF">export rating PDF</button>
+    </div>
     <div class="reviews">
       <h5 class="mb-2">Recent Reviews</h5>
       <p class="text-muted" v-if="reviews.length === 0">No reviews yet. Be the first!</p>

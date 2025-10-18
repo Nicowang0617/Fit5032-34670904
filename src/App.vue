@@ -1,14 +1,23 @@
 <template>
-  <router-view />
+
+  <LogoutBar />
+
+  <main id="main" tabindex="-1" ref="main">
+    <router-view />
+  </main>
 </template>
 
 <script setup>
-</script>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import LogoutBar from '@/components/LogoutBar.vue'
 
-<style>
-body {
-  margin: 0;
-  background: #f8fafc;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-}
-</style>
+const main = ref(null)
+const router = useRouter()
+
+onMounted(() => {
+  router.afterEach(() => {
+    requestAnimationFrame(() => main.value?.focus())
+  })
+})
+</script>

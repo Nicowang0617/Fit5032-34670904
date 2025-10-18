@@ -19,8 +19,8 @@ const save = (k, v) => localStorage.setItem(k, JSON.stringify(v))
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null,             
-    ready: false,               
+    user: null,               
+    ready: false,              
     attempts: load(LS_ATTEMPTS, {}), 
   }),
 
@@ -30,11 +30,12 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-
     init() {
       if (this.ready) return
       onAuthStateChanged(auth, async (u) => {
         if (u) {
+          try { await u.getIdToken(true) } catch (e) { console.warn('getIdToken failed:', e) }
+
           const role = await this._getRole(u.uid)
           this.user = {
             uid: u.uid,
@@ -42,7 +43,6 @@ export const useAuthStore = defineStore('auth', {
             displayName: u.displayName,
             role: role || 'user',
           }
-
           await this.ensureAdmin()
         } else {
           this.user = null
@@ -59,11 +59,13 @@ export const useAuthStore = defineStore('auth', {
       }
 
       const cred = await createUserWithEmailAndPassword(auth, email, password)
-      if (name?.trim()) await updateProfile(cred.user, { displayName: name.trim() })
+
+      const display = (name || '').trim()
+      if (display) await updateProfile(cred.user, { displayName: display })
 
       await setDoc(doc(db, 'profiles', cred.user.uid), {
         email: cred.user.email,
-        displayName: name?.trim() || cred.user.displayName || '',
+        displayName: display || cred.user.displayName || '',
         role: 'user',
         createdAt: serverTimestamp(),
       })
@@ -71,7 +73,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = {
         uid: cred.user.uid,
         email: cred.user.email,
-        displayName: name?.trim() || cred.user.displayName,
+        displayName: display || cred.user.displayName || '',
         role: 'user',
       }
     },
@@ -108,12 +110,21 @@ export const useAuthStore = defineStore('auth', {
         const entry = this.attempts[norm] || { count: 0, lockedUntil: 0 }
         entry.count += 1
         if (entry.count >= 5) {
-          entry.lockedUntil = now + 10 * 60 * 1000 
+          entry.lockedUntil = now + 10 * 60 * 1000 // 锁 10 分钟
           entry.count = 0
         }
         this.attempts = { ...this.attempts, [norm]: entry }
         save(LS_ATTEMPTS, this.attempts)
-        throw new Error('Invalid email or password')
+
+        const code = err?.code || ''
+        let msg = 'Login failed'
+        if (code.includes('invalid-api-key')) msg = 'API key invalid. Check your Firebase config.'
+        else if (code.includes('operation-not-allowed')) msg = 'Sign-in method not enabled in Firebase console.'
+        else if (code.includes('invalid-email')) msg = 'Invalid email address.'
+        else if (code.includes('user-disabled')) msg = 'This account has been disabled.'
+        else if (code.includes('user-not-found') || code.includes('wrong-password')) msg = 'Invalid email or password.'
+        else if (err?.message) msg = err.message
+        throw new Error(msg)
       }
     },
 
@@ -121,7 +132,6 @@ export const useAuthStore = defineStore('auth', {
       await signOut(auth)
       this.user = null
     },
-
 
     async ensureAdmin() {
       if (!this.user?.email) return

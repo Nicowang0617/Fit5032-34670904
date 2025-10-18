@@ -15,8 +15,11 @@
     "bootstrap": "^5.3.8",
     "dompurify": "^3.2.6",
     "firebase": "^12.4.0",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "mapbox-gl": "^3.15.0",
     "pinia": "^3.0.3",
+    "v-calendar": "^3.1.2",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },

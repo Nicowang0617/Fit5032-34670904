@@ -3,12 +3,13 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD6GP9AVzLAavPFB_stJ2A6ZbbPT1egUrU",
-  authDomain: "fit5032-final-haoyangwang.firebaseapp.com",
-  projectId: "fit5032-final-haoyangwang",
-  storageBucket: "fit5032-final-haoyangwang.firebasestorage.app",
-  messagingSenderId: "573796189821",
-  appId: "1:573796189821:web:9bc37f092c72b958149314"
+  apiKey: "AIzaSyCx9calMgJXkjAUvSXTTLyOBLbcZOEydwU",
+  authDomain: "fit5032-final-haoyang.firebaseapp.com",
+  projectId: "fit5032-final-haoyang",
+  storageBucket: "fit5032-final-haoyang.firebasestorage.app",
+  messagingSenderId: "588552046705",
+  appId: "1:588552046705:web:a914ec2b5343a6590473d0",
+  measurementId: "G-KHPZZXT9H6"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -17,4 +18,4 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export default app;
 
-console.log("✅ Firebase initialized successfully:", app.name);
+console.log('firebase app options =', app.options)
