@@ -6,31 +6,28 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import AppointmentForm from '@/components/AppointmentForm.vue'
 import AdminView from '@/views/AdminView.vue'
-import AdminEmailView from '@/views/AdminEmailView.vue'
+import AdminEmailView from '@/views/AdminEmailview.vue' 
 
 const GeoView = () => import('@/views/GeoView.vue')
+const RatingView = () => import('@/views/RatingView.vue')
 
 const routes = [
   { path: '/', redirect: '/login' },
 
   { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true } },
   { path: '/register', name: 'register', component: RegisterView, meta: { guestOnly: true } },
- { path: '/admin', name: 'Admin', component: AdminView, meta: { requiresAuth: true, adminOnly: true } },
-  { path: '/admin/email', name: 'AdminEmail', component: AdminEmailView, meta: { requiresAuth: true, adminOnly: true } },
+
   { path: '/appointment', name: 'appointment', component: AppointmentForm, meta: { requiresAuth: true } },
 
-  {
-  path: '/rating',
-  name: 'rating',
-  component: () => import('@/views/RatingView.vue'),
-  meta: { requiresAuth: true }, 
-},
 
-  { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true, roles: ['admin'] } },
+  { path: '/admin', name: 'admin', component: AdminView, meta: { requiresAuth: true, adminOnly: true } },
+  { path: '/admin/email', name: 'adminEmail', component: AdminEmailView, meta: { requiresAuth: true, adminOnly: true } },
+
+  { path: '/rating', name: 'rating', component: RatingView, meta: { requiresAuth: true } },
+  { path: '/geo', name: 'geo', component: GeoView, meta: { requiresAuth: true } },
+  { path: '/map', redirect: { name: 'geo' } }, 
 
   { path: '/email', redirect: '/admin' },
-
-  { path: '/geo', name: 'geo', component: GeoView, meta: { requiresAuth: true } },
 
   { path: '/:pathMatch(.*)*', redirect: '/login' },
 ]
@@ -54,40 +51,49 @@ async function waitAuthReady(auth) {
 async function ensureRemoteAdmin(auth) {
   if (auth.user && auth.user.role === 'admin') return true
 
-  try {
-    const fn = httpsCallable(getFunctions(), 'checkUserRole')
+  const functions = getFunctions(undefined, 'us-central1') 
+  const tryCall = async (name) => {
+    const fn = httpsCallable(functions, name)
     const res = await fn()
-    const isAdmin = !!(res && res.data && res.data.isAdmin)
+    return !!(res && res.data && (res.data.isAdmin || res.data.admin === true))
+  }
+
+  try {
+    let isAdmin = false
+    try { isAdmin = await tryCall('isAdmin') } catch {}
+    if (!isAdmin) { isAdmin = await tryCall('checkUserRole') }
+
     if (isAdmin) {
-      const user = auth.user || {}
-      auth.user = { ...user, role: 'admin' } 
+      auth.user = { ...(auth.user || {}), role: 'admin' }
+      return true
     }
-    return isAdmin
+    return false
   } catch (e) {
-    console.warn('checkUserRole failed:', e)
+    console.warn('admin check failed:', e)
     return false
   }
 }
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-
   await waitAuthReady(auth)
 
   if (typeof auth.ensureAdmin === 'function') {
     try { await auth.ensureAdmin() } catch {}
   }
 
-  if (to.meta && to.meta.guestOnly && auth.isAuthenticated) {
+  if (to.meta?.guestOnly && auth.isAuthenticated) {
     return { name: 'appointment' }
   }
 
-  if (to.meta && to.meta.requiresAuth && !auth.isAuthenticated) {
+  if (to.meta?.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  if (to.meta && Array.isArray(to.meta.roles) && to.meta.roles.includes('admin')) {
+  const needAdmin = to.meta?.adminOnly ||
+    (Array.isArray(to.meta?.roles) && to.meta.roles.includes('admin'))
 
+  if (needAdmin) {
     const ok = await ensureRemoteAdmin(auth)
     if (!ok) return { name: 'appointment' }
   }
