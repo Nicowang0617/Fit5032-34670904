@@ -26,10 +26,8 @@ const routes = [
   { path: '/geo',    name: 'geo',    component: GeoView,   meta: { requiresAuth: true } },
   { path: '/map', redirect: { name: 'geo' } },
 
-  // 兼容旧链接
   { path: '/email', redirect: '/admin' },
 
-  // 兜底
   { path: '/:pathMatch(.*)*', redirect: '/login' },
 ]
 
@@ -47,11 +45,10 @@ async function waitAuthReady(auth) {
   })
 }
 
-// 远端校验是否 admin（优先 isAdmin，兜底 checkUserRole）
 async function ensureRemoteAdmin(auth) {
   if (auth.user && auth.user.role === 'admin') return true
 
-  const functions = getFunctions(undefined, 'us-central1') // 指定 region
+  const functions = getFunctions(undefined, 'us-central1') 
   const call = async (name) => {
     const fn = httpsCallable(functions, name)
     const res = await fn()
@@ -78,17 +75,14 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore()
   await waitAuthReady(auth)
 
-  // 可选：同步本地 admin 状态
   if (typeof auth.ensureAdmin === 'function') {
     try { await auth.ensureAdmin() } catch {}
   }
 
-  // 已登录者禁止进入 login/register
   if (to.meta?.guestOnly && auth.isAuthenticated) {
     return { name: 'appointment' }
   }
 
-  // 需要登录但当前未登录
   if (to.meta?.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }

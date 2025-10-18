@@ -2,7 +2,6 @@
   <section class="d-flex justify-content-center align-items-start mt-5">
     <div style="width: 100%; max-width: 1000px;">
       <form class="appointment-form card p-4" @submit.prevent="submitForm" novalidate>
-        <!-- Header + Voice toggle -->
         <div class="mb-3 d-flex justify-content-between align-items-center">
           <h1 class="m-0">Make an Appointment with Certified Counsellors</h1>
 
@@ -12,7 +11,6 @@
           </div>
         </div>
 
-        <!-- Basic info -->
         <div class="row g-3 mb-3">
           <div class="col-md-6">
             <label for="fullName" class="form-label">
@@ -119,7 +117,6 @@
           </div>
         </div>
 
-        <!-- Self assessment -->
         <div class="mb-3">
           <label for="assessment" class="form-label">
             Self Assessment (mental &amp; physical)
@@ -140,7 +137,6 @@
           ></textarea>
         </div>
 
-        <!-- Appointment date (你的日历保持不变) -->
         <div class="mb-4">
           <label for="apptDate" class="form-label d-block">
             Appointment Date
@@ -173,7 +169,6 @@
           <div v-if="errors.date" class="text-danger mt-1">{{ errors.date }}</div>
         </div>
 
-        <!-- NEW: Booking Time + 冲突提示 -->
         <div class="mb-4">
           <label class="form-label d-block">
             Booking Time (1 hour)
@@ -205,7 +200,6 @@
           </p>
         </div>
 
-        <!-- Submit / Reset -->
         <div class="text-center mt-3">
           <button class="btn btn-primary me-2" type="submit" :disabled="submitting || loading">
             <span v-if="submitting">Booking...</span>
@@ -216,7 +210,6 @@
           </button>
         </div>
 
-        <!-- Links -->
         <div class="text-center mt-3">
           <router-link to="/geo" class="btn btn-outline-primary" aria-label="Open map">
             Open Map🗺️
@@ -240,8 +233,8 @@
 </template>
 
 <script>
-import { db } from '@/Firebase'                // NEW
-import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore' // NEW
+import { db } from '@/Firebase'              
+import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore' 
 import Rating from './Rating.vue'
 
 export default {
@@ -249,7 +242,6 @@ export default {
   components: { Rating },
 
   data() {
-    // Build ISO strings for min/max (today .. +1 year)
     const today = new Date()
     const yyyy = today.getFullYear()
     const mm = String(today.getMonth() + 1).padStart(2, '0')
@@ -262,28 +254,25 @@ export default {
       loadError: false,
       submitting: false,
 
-      // Voice hints (Web Speech)
       voiceOn: true,
       voiceLang: 'en-AU',
       ttsReady: false,
       _voices: [],
 
-      // Form model
       form: {
         fullName: '',
         ageGroup: '',
         gender: '',
         counsellorId: null,
         assessment: '',
-        date: '',   // yyyy-mm-dd
-        hour: null, // NEW: 9..16 (表示 09:00–10:00 ... 16:00–17:00)
+        date: '',  
+        hour: null, 
       },
 
       errors: {},
       ageGroups: [],
       counsellors: [],
 
-      // Calendar constraints（保持你现有的文案和限制思路）
       businessDays: [1, 2, 3, 4, 5],
       blackoutDates: [],
       counsellorWorkingDays: {
@@ -295,32 +284,27 @@ export default {
       minDate: minISO,
       maxDate: maxISO,
 
-      // NEW: 冲突检测提示
       conflictMsg: '',
       conflictOk: true,
     }
   },
 
   computed: {
-    // NEW: 是否周末，用来禁用时间段选择
     isWeekend() {
       if (!this.form.date) return false
       const d = new Date(this.form.date + 'T00:00:00')
       const dow = d.getDay() // 0..6
       return dow === 0 || dow === 6
     },
-    // NEW: 9..16，共 8 段
     timeSlots() {
       return this.isWeekend ? [] : Array.from({ length: 8 }, (_, i) => 9 + i)
     },
   },
 
   async created() {
-    // Load dropdowns with fallback data.
     this.loading = true
     this.loadError = false
     try {
-      // Age groups
       try {
         const r = await fetch('/age-groups.json')
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -336,7 +320,6 @@ export default {
         ]
       }
 
-      // Counsellors
       try {
         const r = await fetch('/counsellors.json')
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -354,12 +337,10 @@ export default {
       this.loading = false
     }
 
-    // Prepare speech synthesis voices
     this.initVoices()
   },
 
   methods: {
-    /* ---------- Web Speech helpers ---------- */
     initVoices() {
       if (!('speechSynthesis' in window)) return
       const load = () => {
@@ -391,7 +372,6 @@ export default {
       window.speechSynthesis.speak(u)
     },
 
-    /* ---------- Form helpers ---------- */
     clearError(key) {
       if (key in this.errors) this.errors[key] = null
     },
@@ -399,7 +379,7 @@ export default {
     onCounsellorChange() {
       if (this.form.date) this.onDateChange()
       this.clearError('counsellor')
-      this.checkConflict() // NEW: counsellor 变更也触发检测
+      this.checkConflict() 
     },
 
     onDateChange() {
@@ -407,8 +387,8 @@ export default {
       if (this.form.date && !this.validateDateAllowed(this.form.date)) {
         this.form.date = ''
       }
-      // 变更日期后也重新做时段冲突检查
-      this.checkConflict() // NEW
+
+      this.checkConflict()
     },
 
     validateDateAllowed(iso) {
@@ -445,7 +425,6 @@ export default {
       return true
     },
 
-    /* ---------- NEW: 冲突检测（读 Firestore 单文档） ---------- */
     async checkConflict() {
       this.conflictMsg = ''
       this.conflictOk = true
@@ -463,14 +442,12 @@ export default {
           this.conflictMsg = 'This time is available.'
         }
       } catch (e) {
-        // 读失败不阻断预约，只是不显示状态
         this.conflictOk = true
         this.conflictMsg = ''
         console.warn('checkConflict failed:', e)
       }
     },
 
-    /* ---------- Validation / submit ---------- */
     labelHour(h) {
       const pad = n => String(n).padStart(2, '0')
       return `${pad(h)}:00–${pad(h + 1)}:00`
@@ -511,9 +488,8 @@ export default {
       this.submitting = true
       try {
         const { fullName, counsellorId, date, hour, ageGroup, gender, assessment } = this.form
-        const id = `${counsellorId}_${date}_${hour}`  // 固定主键保证唯一
+        const id = `${counsellorId}_${date}_${hour}`  
 
-        // 事务：再次读取，若已存在则抛错，避免并发
         const ref = doc(db, 'appointments', id)
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(ref)
